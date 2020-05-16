@@ -2,25 +2,30 @@
 
 (require openssl)
 (require net/url)
-(struct response (status meta body) #:transparent)
+(struct response (status meta body from-url) #:transparent)
 
 (define (parse-header header)
   (let ([parts (string-split header)])
      (values (string->number (first parts))
              (second parts))))
 
+(define (make-request-contents url query)
+  (if query
+      (string-append (url->string url) "?" query "\r\n")
+      (string-append (url->string url) "\r\n")))
+
 ; based on https://github.com/erkin/gophwr/blob/master/src/gopher.rkt
-(define (make-request url)
+(define (make-request url query)
   (let-values ([(in out) (ssl-connect/enable-break
-                          (url-host (string->url url))
-                          (or (url-port (string->url url)) 1965))])
-    (display (string-append url "\r\n") out)
+                          (url-host url)
+                          (or (url-port url) 1965))])
+    (display (make-request-contents url query) out)
     (ssl-abandon-port out)
     (let* ([res (port->lines in)]
            [header (first res)]
            [body (rest res)])
       (let-values ([(status meta) (parse-header header)])
-        (response status meta body)))))
+        (response status meta body url)))))
 
 (define (show-body body mimetype)
   (send page-contents erase)
@@ -29,19 +34,20 @@
     [(regexp #rx"text/*") (string-join body "\n")]
     [_ "Unknown mimetype"])))
 
-; TODO
-(define (prompt meta)
-  "Prompted")
+(define (prompt prompted-by meta)
+  (let ([input (get-text-from-user "Input required" meta)])
+    (fetch prompted-by input)))
 
 (define (process-response res)
   (let* ([body (response-body res)]
+         [from-url (response-from-url res)]
          [meta (response-meta res)]
          [status (response-status res)]
-         [redirect (thunk (fetch meta))]
+         [redirect (thunk (fetch (string->url meta)))]
          [show (thunk (show-body body meta))]
          [error (lambda (e) (string-append e ": " meta))])
   (match status
-    [10 (prompt meta)]
+    [10 (prompt from-url meta)]
     [20 (show)]
     [21 (show)] ;TODO: delete session
     [30 (redirect)]
@@ -58,8 +64,8 @@
     [54 (error "Bad request")]
     [_ "Unknown response"])))
 
-(define (fetch url)
-  (process-response (make-request url)))
+(define (fetch url [query #f])
+  (process-response (make-request url query)))
 
 (define (show-error message)
   (message-box "Error" message))
@@ -83,8 +89,10 @@
   (new button%
        [parent panel]
        [label "Go"]
-       [callback (lambda (_ __) ((let ([raw-url (send address-bar get-value)])
-                                   (if (url-host (string->url raw-url))
+       [callback (lambda (_ __) ((let ([raw-url (string->url (send address-bar get-value))])
+                                   (unless (url-scheme raw-url)
+                                     (set-url-scheme! raw-url "gemini"))
+                                   (if (url-host raw-url)
                                        (thunk (fetch raw-url))
                                        (thunk (show-error "Invalid URL"))))))]))
 
