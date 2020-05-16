@@ -21,18 +21,17 @@
                           (or (url-port url) 1965))])
     (display (make-request-contents url query) out)
     (ssl-abandon-port out)
-    (let* ([res (port->lines in)]
-           [header (first res)]
-           [body (rest res)])
+    (let ([header (read-line in)])
       (let-values ([(status meta) (parse-header header)])
-        (response status meta body url)))))
+        (response status meta in url)))))
 
 (define (show-body body mimetype)
   (send page-contents erase)
-  (send page-contents insert (match mimetype
-    ["text/gemini" (string-join body "\n")]
-    [(regexp #rx"text/*") (string-join body "\n")]
-    [_ "Unknown mimetype"])))
+  (match mimetype
+    ["text/gemini" (send page-contents insert (string-join (port->lines body) "\n"))]
+    [(regexp #rx"text/*") (send page-contents insert (string-join (port->lines body) "\n"))]
+    [_ (write-bytes (port->bytes body) (open-output-file (put-file "Choose a location to save file") #:exists 'replace))]))
+ 
 
 (define (prompt prompted-by meta)
   (let ([input (get-text-from-user "Input required" meta)])
