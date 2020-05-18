@@ -1,0 +1,11 @@
+TODO
+
+Essential:
+- header styling
+- relative links (see gemini.circumlunar.space)
+- click anywhere on links rather than end
+- home page
+
+Fun:
+- bookmarks (?)
+- colour error messages
