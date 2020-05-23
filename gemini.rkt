@@ -181,3 +181,5 @@
        [editor page-contents]))
 
 (send window show #t)
+
+(initiate-user-fetch (string->url "gemini://gemini.circumlunar.space"))
