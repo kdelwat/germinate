@@ -4,6 +4,20 @@
 (require net/url)
 (struct response (status meta body from-url) #:transparent)
 
+; History
+(define history-stack '())
+
+(define (pop-history)
+  (define top (first history-stack))
+  (set! history-stack (rest history-stack))
+  top)
+
+(define (push-history url)
+  (set! history-stack (append (list url) history-stack)))
+
+(define (back-enabled)
+  (> (length history-stack) 1))
+
 (define thread-custodian 'nil)
 
 (define (parse-header header)
@@ -112,6 +126,8 @@
          [redirect (thunk (fetch (string->url meta)))]
          [show (thunk (show-body body meta from-url))]
          [error (lambda (e) (string-append e ": " meta))])
+    (when (or (< status 30) (> status 39))
+      (push-history from-url))
     (match status
       [10 (prompt from-url meta)]
       [20 (show)]
@@ -132,7 +148,7 @@
     (send address-bar set-value (url->string from-url))
     (send status-bar set-label (string-append "Ready"))))
 
-(define (initiate-user-fetch url [query #f])       
+(define (initiate-user-fetch url [query #f])
   (when (custodian? thread-custodian)
       (custodian-shutdown-all thread-custodian))
   (fetch url query))
@@ -167,6 +183,12 @@
   (new horizontal-panel%
        [parent panel]
        [stretchable-height #f]))
+
+(define back-button
+  (new button%
+       [parent address-bar-panel]
+       [label "Back"]
+       [callback (lambda (_ __) (and (back-enabled) (initiate-user-fetch (and (pop-history) (pop-history)))))]))
 
 (define address-bar
   (new text-field%
