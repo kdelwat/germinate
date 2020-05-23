@@ -6,6 +6,12 @@ It's written in a literate programming style using Racket, so the source code is
 
 To run the browser, you can use a binary distribution from the releases page or run the code in [DrRacket](https://docs.racket-lang.org/drracket/interface-essentials.html).
 
+## Screenshots
+
+**The Gemini home page**
+
 ![The Gemini home page](home.png)
+
+**Viewing results in Gus, the Gemini search engine**
 
 ![Viewing results in Gus, the Gemini search engine](gus.png)
