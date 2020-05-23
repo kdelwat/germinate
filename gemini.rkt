@@ -61,25 +61,29 @@
 ; Gemini text
 (define gemini-link-re #px"=>\\s*(\\S*)\\s*(.*)")
 
-(define (line->gemini-link line)
-  (let ([match (regexp-match gemini-link-re (string-trim line))])
+(define (line->gemini-link line base-url)
+  (let* ([match (regexp-match gemini-link-re (string-trim line))]
+         [link-url (second match)]
+         [absolute-url (if (string-prefix? link-url "gemini://")
+                           link-url
+                           (string-append (url->string base-url) link-url))])
     (if (= (length match) 3)
-        (make-link (second match) (third match))
-        (make-link (second match)))))
+        (make-link absolute-url (third match))
+        (make-link absolute-url))))
 
-(define (show-gemini-text lines)
+(define (show-gemini-text lines base-url)
   (for/list ([line lines])
     (send page-contents insert
           (match line
-            [(regexp gemini-link-re) (line->gemini-link line)]
+            [(regexp gemini-link-re) (line->gemini-link line base-url)]
             [_ (make-text line)]))
     (send page-contents insert "\n")))
 
-(define (show-body body mimetype)
+(define (show-body body mimetype base-url)
   (send page-contents erase)
 
   (match mimetype
-    ["text/gemini" (show-gemini-text (port->lines body))]
+    ["text/gemini" (show-gemini-text (port->lines body) base-url)]
     [(regexp #rx"text/*") (send page-contents insert (string-join (port->lines body) "\n"))]
     [_ (write-bytes (port->bytes body) (open-output-file (put-file "Choose a location to save file") #:exists 'replace))]))
  
@@ -93,7 +97,7 @@
          [meta (response-meta res)]
          [status (response-status res)]
          [redirect (thunk (fetch (string->url meta)))]
-         [show (thunk (show-body body meta))]
+         [show (thunk (show-body body meta from-url))]
          [error (lambda (e) (string-append e ": " meta))])
     (match status
       [10 (prompt from-url meta)]
