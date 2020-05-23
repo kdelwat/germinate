@@ -27,9 +27,14 @@
       (let-values ([(status meta) (parse-header header)])
         (response status meta in url)))))
 
+(define header-style
+  (let ([delta (make-object style-delta% 'change-bold)])
+    (send the-style-list find-or-create-style #f delta)))
+
 (define link-style
-  (send the-style-list find-or-create-style #f
-        (make-object style-delta% 'change-italic)))
+  (let ([delta (make-object style-delta% 'change-italic)])
+    (send delta set-delta-foreground "DodgerBlue")
+    (send the-style-list find-or-create-style #f delta)))
 
 (define text-style
   (send the-style-list basic-style))
@@ -58,8 +63,15 @@
   (send text-snip insert text (string-length text))
   text-snip)
 
+(define (line->header line)
+  (define text-snip (new string-snip%))
+  (send text-snip set-style header-style)
+  (send text-snip insert line (string-length line))
+  text-snip)
+
 ; Gemini text
 (define gemini-link-re #px"=>\\s*(\\S*)\\s*(.*)")
+(define gemini-header-re #px"^#{1,3}.*")
 
 (define (line->gemini-link line base-url)
   (let* ([match (regexp-match gemini-link-re (string-trim line))]
@@ -76,6 +88,7 @@
     (send page-contents insert
           (match line
             [(regexp gemini-link-re) (line->gemini-link line base-url)]
+            [(regexp gemini-header-re) (line->header line)]
             [_ (make-text line)]))
     (send page-contents insert "\n")))
 
