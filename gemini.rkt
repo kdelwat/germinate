@@ -244,7 +244,8 @@
 (define status-bar
   (new message%
        [label "Ready"]
-       [parent panel]))
+       [parent panel]
+       [stretchable-width #t]))
 
 ; On to the actual page being viewed. To show a page, we'll use Racket's editor class. Since we don't want
 ; to drag elements around the page, a simple text editor will suffice.
@@ -273,7 +274,10 @@
     [(regexp #rx"text/*") (send page-contents insert (string-join (port->lines body) "\n"))]
 
     ; If the body isn't text, we'll let the user save it as a binary file to their computer
-    [_ (write-bytes (port->bytes body) (open-output-file (put-file "Choose a location to save file") #:exists 'replace))]))
+    [_ (write-bytes (port->bytes body) (open-output-file (put-file "Choose a location to save file") #:exists 'replace))])
+
+  ; Jump to the top of the page
+  (send page scroll-to 0 0 100 100 #t 'start))
 
 ; The Gemini text format is really simple. All we're going to handle are links, headers, and text lines.
 ; To show content in the Racket editor, we use "snips", which wrap a group of characters with styles and event handlers.
